@@ -21,6 +21,8 @@ concurrency:
 env:
   SITE_URL: https://tavikukko365.sharepoint.com/sites/porch-brandi
   PORCH_CLIENT_ID: 4684ce11-6bcf-4782-9d4e-4f09ddb506ff
+  # Test sites only: publish Microsoft 365 stock images (not licensed for websites) with a warning.
+  PORCH_ALLOW_STOCK_IMAGES: 'true'
 
 jobs:
   build:
