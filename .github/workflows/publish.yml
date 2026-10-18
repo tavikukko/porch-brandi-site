@@ -1,0 +1,49 @@
+# Publishes the website from SharePoint to GitHub Pages (made by Porch).
+# Signs in to SharePoint as the "Porch publisher" app through this repo's GitHub identity (a
+# federated credential in Entra ID): no secrets. The app can read only the sites granted to it.
+name: Publish website
+
+on:
+  workflow_dispatch:
+  # Uncomment to publish automatically, e.g. every hour (pages that haven't changed stay the same).
+  # schedule:
+  #   - cron: '17 * * * *'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  SITE_URL: https://tavikukko365.sharepoint.com/sites/porch-brandi
+  PORCH_CLIENT_ID: 4684ce11-6bcf-4782-9d4e-4f09ddb506ff
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - id: pages
+        uses: actions/configure-pages@v5
+      - name: Build from SharePoint
+        run: node .porch/porch-build.mjs "$SITE_URL" --out _site --base "${{ steps.pages.outputs.base_path }}/" --strict
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
