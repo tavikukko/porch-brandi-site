@@ -1,0 +1,59 @@
+# Publishes a website zip from Porch's "Download website" (made by Porch): upload the zip to this
+# repo (Add file → Upload files) and it goes live. The newest committed zip is the one published.
+name: Publish website from zip
+
+on:
+  push:
+    paths:
+      - '**.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: pages
+        uses: actions/configure-pages@v5
+      - name: Unpack the newest zip
+        run: |
+          zip=$(git log -1 --format= --name-only --diff-filter=AM -- '*.zip' | head -n 1)
+          if [ -z "$zip" ] || [ ! -f "$zip" ]; then
+            echo "::error title=No website zip::Upload the zip from Porch's Download website to this repo."
+            exit 1
+          fi
+          mkdir _site
+          unzip -q "$zip" -d _site
+          if [ ! -f _site/index.html ]; then
+            echo "::error title=Not a website zip::$zip has no index.html at its top level."
+            exit 1
+          fi
+          {
+            echo "## ✅ Published $zip"
+            echo
+            echo "$(find _site -name index.html | wc -l | tr -d ' ') page(s), $(du -sh _site | cut -f1)"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
